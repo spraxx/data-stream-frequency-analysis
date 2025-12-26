@@ -1,0 +1,11 @@
+rank,year,exact_count,ss_count,match
+1,2021,125,0,False
+2,2020,114,0,False
+3,2019,99,0,False
+4,2017,69,0,False
+5,2018,65,0,False
+6,2016,61,146,True
+7,2011,52,0,False
+8,2014,50,144,True
+9,2015,46,145,True
+10,2012,41,145,True
