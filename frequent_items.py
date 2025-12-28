@@ -126,12 +126,20 @@ class FrequentItemsProject:
         approx_stats, approx_top10 = self._analyze_approximate_counter(exact, exact_sorted)
         
         # Space-Saving analysis
-        print("[2/3] Analyzing Space-Saving algorithm...")
+        print("[2/4] Analyzing Space-Saving algorithm...")
         ss_performance, ss_top10 = self._analyze_space_saving(exact, exact_sorted)
         
         # Order preservation analysis
-        print("[3/3] Analyzing order preservation...")
+        print("[3/5] Analyzing order preservation...")
         order_stats = self._analyze_order_preservation(exact_sorted)
+        
+        # Memory growth analysis
+        print("[4/5] Analyzing memory growth over time...")
+        memory_growth = self._analyze_memory_growth()
+        
+        # Probability trade-off analysis
+        print("[5/5] Analyzing probability trade-off (multiple p values)...")
+        prob_tradeoff = self._analyze_probability_tradeoff()
         
         # Save all results
         approx_stats.to_csv('results/approximate_counter_stats.csv', index=False)
@@ -139,6 +147,8 @@ class FrequentItemsProject:
         ss_performance.to_csv('results/space_saving_performance.csv', index=False)
         ss_top10.to_csv('results/space_saving_top10.csv', index=False)
         order_stats.to_csv('results/order_preservation.csv', index=False)
+        memory_growth.to_csv('results/memory_growth.csv', index=False)
+        prob_tradeoff.to_csv('results/probability_tradeoff.csv', index=False)
         
         print("\n" + "=" * 70)
         print("ANALYSIS COMPLETE")
@@ -149,6 +159,8 @@ class FrequentItemsProject:
         print("  - space_saving_performance.csv")
         print("  - space_saving_top10.csv")
         print("  - order_preservation.csv")
+        print("  - memory_growth.csv")
+        print("  - probability_tradeoff.csv")
         print("=" * 70)
     
     def _analyze_approximate_counter(
@@ -332,6 +344,97 @@ class FrequentItemsProject:
             })
         
         return pd.DataFrame(order_data)
+    
+    def _analyze_memory_growth(self) -> pd.DataFrame:
+        """Track memory growth over time for exact and approximate counters.
+        
+        Returns:
+            DataFrame with time-series memory usage data
+        """
+        memory_data = []
+        
+        # Exact counter tracking
+        exact_seen = set()
+        
+        # Fixed probability counter tracking (p=0.5)
+        p = 0.5
+        approx_seen = set()
+        
+        for i, item in enumerate(self.data_stream, 1):
+            # Track exact counter
+            exact_seen.add(item)
+            
+            # Track approximate counter (sample with probability p)
+            if random.random() < p:
+                approx_seen.add(item)
+            
+            # Record at intervals
+            if i % 50 == 0 or i == len(self.data_stream):
+                memory_data.append({
+                    'items_processed': i,
+                    'exact_counters': len(exact_seen),
+                    'approx_counters': len(approx_seen),
+                    'approx_percentage': len(approx_seen) / len(exact_seen) * 100 if len(exact_seen) > 0 else 0
+                })
+        
+        return pd.DataFrame(memory_data)
+    
+    def _analyze_probability_tradeoff(self) -> pd.DataFrame:
+        """Analyze trade-off between memory and accuracy across different p values.
+        
+        Returns:
+            DataFrame with memory usage and error metrics for different p values
+        """
+        p_values = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+        exact = self.get_exact_counts()
+        tradeoff_data = []
+        
+        for p in p_values:
+            # Run multiple trials for each p value
+            num_trials = 5
+            trial_memory = []
+            trial_abs_errors = []
+            trial_rel_errors = []
+            trial_missing = []
+            
+            for _ in range(num_trials):
+                approx = self.fixed_probability_counter(p)
+                
+                # Track memory (unique items sampled)
+                trial_memory.append(len(approx))
+                
+                # Calculate errors
+                abs_errors = []
+                rel_errors = []
+                missing_count = 0
+                
+                for year, actual_count in exact.items():
+                    est_count = approx.get(year, 0)
+                    abs_err = abs(actual_count - est_count)
+                    abs_errors.append(abs_err)
+                    rel_errors.append(abs_err / actual_count if actual_count > 0 else 0)
+                    
+                    if est_count == 0:
+                        missing_count += 1
+                
+                trial_abs_errors.append(np.mean(abs_errors))
+                trial_rel_errors.append(np.mean(rel_errors))
+                trial_missing.append(missing_count)
+            
+            # Average across trials
+            tradeoff_data.append({
+                'probability_p': p,
+                'memory_counters': np.mean(trial_memory),
+                'memory_percentage': np.mean(trial_memory) / len(exact) * 100,
+                'mean_abs_error': np.mean(trial_abs_errors),
+                'std_abs_error': np.std(trial_abs_errors),
+                'mean_rel_error_pct': np.mean(trial_rel_errors) * 100,
+                'std_rel_error_pct': np.std(trial_rel_errors) * 100,
+                'missing_items': np.mean(trial_missing),
+                'missing_items_pct': np.mean(trial_missing) / len(exact) * 100
+            })
+        
+        return pd.DataFrame(tradeoff_data)
 
 if __name__ == "__main__":
     try:
