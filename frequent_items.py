@@ -2,6 +2,7 @@
 
 import os
 import random
+import time
 from collections import Counter
 from typing import Dict, List, Tuple
 
@@ -111,6 +112,10 @@ class FrequentItemsProject:
             - results/space_saving_performance.csv: Precision/recall metrics
             - results/space_saving_top10.csv: Top 10 comparison
             - results/order_preservation.csv: Order preservation metrics
+            - results/memory_growth.csv: Memory growth over time
+            - results/probability_tradeoff.csv: Probability vs accuracy tradeoff
+            - results/execution_times.csv: Algorithm execution time comparison
+            - results/least_frequent_analysis.csv: Bottom-5 items comparison
         """
         os.makedirs('results', exist_ok=True)
         
@@ -122,24 +127,32 @@ class FrequentItemsProject:
         print("=" * 70)
         
         # Approximate counter analysis
-        print("\n[1/3] Analyzing approximate counter (10 trials)...")
+        print("\n[1/7] Analyzing approximate counter (10 trials)...")
         approx_stats, approx_top10 = self._analyze_approximate_counter(exact, exact_sorted)
         
         # Space-Saving analysis
-        print("[2/4] Analyzing Space-Saving algorithm...")
+        print("[2/7] Analyzing Space-Saving algorithm...")
         ss_performance, ss_top10 = self._analyze_space_saving(exact, exact_sorted)
         
         # Order preservation analysis
-        print("[3/5] Analyzing order preservation...")
+        print("[3/7] Analyzing order preservation...")
         order_stats = self._analyze_order_preservation(exact_sorted)
         
         # Memory growth analysis
-        print("[4/5] Analyzing memory growth over time...")
+        print("[4/7] Analyzing memory growth over time...")
         memory_growth = self._analyze_memory_growth()
         
         # Probability trade-off analysis
-        print("[5/5] Analyzing probability trade-off (multiple p values)...")
+        print("[5/7] Analyzing probability trade-off (multiple p values)...")
         prob_tradeoff = self._analyze_probability_tradeoff()
+        
+        # Execution time analysis
+        print("[6/7] Measuring execution times...")
+        exec_times = self._analyze_execution_times()
+        
+        # Least frequent analysis
+        print("[7/7] Analyzing least frequent items...")
+        least_freq = self._analyze_least_frequent(exact, exact_sorted)
         
         # Save all results
         approx_stats.to_csv('results/approximate_counter_stats.csv', index=False)
@@ -149,6 +162,8 @@ class FrequentItemsProject:
         order_stats.to_csv('results/order_preservation.csv', index=False)
         memory_growth.to_csv('results/memory_growth.csv', index=False)
         prob_tradeoff.to_csv('results/probability_tradeoff.csv', index=False)
+        exec_times.to_csv('results/execution_times.csv', index=False)
+        least_freq.to_csv('results/least_frequent_analysis.csv', index=False)
         
         print("\n" + "=" * 70)
         print("ANALYSIS COMPLETE")
@@ -161,6 +176,8 @@ class FrequentItemsProject:
         print("  - order_preservation.csv")
         print("  - memory_growth.csv")
         print("  - probability_tradeoff.csv")
+        print("  - execution_times.csv")
+        print("  - least_frequent_analysis.csv")
         print("=" * 70)
     
     def _analyze_approximate_counter(
@@ -260,7 +277,8 @@ class FrequentItemsProject:
         Returns:
             Tuple of (performance metrics DataFrame, top10 comparison DataFrame)
         """
-        n_values = [5, 10, 15, 20]
+        # Extended range to show convergence toward exact counts
+        n_values = [5, 10, 15, 20, 30, 50, 90]
         performance_data = []
         
         for n in n_values:
@@ -435,6 +453,110 @@ class FrequentItemsProject:
             })
         
         return pd.DataFrame(tradeoff_data)
+    
+    def _analyze_execution_times(self) -> pd.DataFrame:
+        """Measure execution time for each algorithm processing 1,450 records.
+        
+        Returns:
+            DataFrame with execution times in milliseconds
+        """
+        time_data = []
+        num_trials = 10
+        
+        # Exact counter timing
+        exact_times = []
+        for _ in range(num_trials):
+            start = time.perf_counter()
+            self.get_exact_counts()
+            exact_times.append((time.perf_counter() - start) * 1000)
+        
+        time_data.append({
+            'algorithm': 'Exact Counter',
+            'mean_time_ms': np.mean(exact_times),
+            'std_time_ms': np.std(exact_times),
+            'min_time_ms': np.min(exact_times),
+            'max_time_ms': np.max(exact_times)
+        })
+        
+        # Approximate counter timing (p=0.5)
+        approx_times = []
+        for _ in range(num_trials):
+            start = time.perf_counter()
+            self.fixed_probability_counter(0.5)
+            approx_times.append((time.perf_counter() - start) * 1000)
+        
+        time_data.append({
+            'algorithm': 'Approximate Counter (p=0.5)',
+            'mean_time_ms': np.mean(approx_times),
+            'std_time_ms': np.std(approx_times),
+            'min_time_ms': np.min(approx_times),
+            'max_time_ms': np.max(approx_times)
+        })
+        
+        # Space-Saving timing for different m values
+        for m in [5, 10, 15, 20, 30, 50, 90]:
+            ss_times = []
+            for _ in range(num_trials):
+                start = time.perf_counter()
+                self.space_saving(m)
+                ss_times.append((time.perf_counter() - start) * 1000)
+            
+            time_data.append({
+                'algorithm': f'Space-Saving (m={m})',
+                'mean_time_ms': np.mean(ss_times),
+                'std_time_ms': np.std(ss_times),
+                'min_time_ms': np.min(ss_times),
+                'max_time_ms': np.max(ss_times)
+            })
+        
+        return pd.DataFrame(time_data)
+    
+    def _analyze_least_frequent(
+        self,
+        exact: Counter,
+        exact_sorted: List[Tuple[int, int]]
+    ) -> pd.DataFrame:
+        """Analyze how algorithms handle the least frequent items.
+        
+        Compares bottom-5 items from exact counter against approximate
+        and Space-Saving algorithms to evaluate performance on rare items.
+        
+        Args:
+            exact: Exact counts
+            exact_sorted: Sorted list of (item, count) tuples
+            
+        Returns:
+            DataFrame comparing bottom-5 items across algorithms
+        """
+        # Get bottom 5 items from exact counter
+        bottom5_exact = sorted(exact.items(), key=lambda x: x[1])[:5]
+        
+        # Run algorithms
+        approx = self.fixed_probability_counter(0.5)
+        ss_10 = self.space_saving(10)
+        ss_20 = self.space_saving(20)
+        ss_50 = self.space_saving(50)
+        ss_90 = self.space_saving(90)
+        
+        least_freq_data = []
+        for rank, (year, exact_count) in enumerate(bottom5_exact, 1):
+            least_freq_data.append({
+                'rank': rank,
+                'year': year,
+                'exact_count': exact_count,
+                'approx_count': approx.get(year, 0),
+                'approx_found': year in approx,
+                'ss_10_count': ss_10.get(year, 0),
+                'ss_10_found': year in ss_10,
+                'ss_20_count': ss_20.get(year, 0),
+                'ss_20_found': year in ss_20,
+                'ss_50_count': ss_50.get(year, 0),
+                'ss_50_found': year in ss_50,
+                'ss_90_count': ss_90.get(year, 0),
+                'ss_90_found': year in ss_90
+            })
+        
+        return pd.DataFrame(least_freq_data)
 
 if __name__ == "__main__":
     try:

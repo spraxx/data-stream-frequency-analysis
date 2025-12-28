@@ -1,0 +1,6 @@
+rank,year,exact_count,approx_count,approx_found,ss_10_count,ss_10_found,ss_20_count,ss_20_found,ss_50_count,ss_50_found,ss_90_count,ss_90_found
+1,1944,1,2,True,0,False,0,False,0,False,1,True
+2,1928,1,0,False,0,False,0,False,0,False,1,True
+3,1970,1,2,True,0,False,0,False,0,False,1,True
+4,1945,1,2,True,0,False,0,False,0,False,1,True
+5,1968,1,2,True,0,False,0,False,12,True,1,True
