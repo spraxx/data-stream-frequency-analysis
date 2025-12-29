@@ -50,8 +50,7 @@ class FrequentItemsProject:
         
         self.data_stream = self.df['release_year'].tolist()
         self.n_total = len(self.data_stream)
-        print(f"Dataset loaded: {self.n_total} records, "
-              f"{len(set(self.data_stream))} unique items\n")
+        print(f"Dataset loaded: {self.n_total} records, {len(set(self.data_stream))} unique items")
 
     def get_exact_counts(self) -> Counter:
         """Compute exact count of each item using Counter.
@@ -118,40 +117,28 @@ class FrequentItemsProject:
             - results/least_frequent_analysis.csv: Bottom-5 items comparison
         """
         os.makedirs('results', exist_ok=True)
-        
         exact = self.get_exact_counts()
         exact_sorted = sorted(exact.items(), key=lambda x: x[1], reverse=True)
         
-        print("=" * 70)
-        print("RUNNING ANALYSIS")
-        print("=" * 70)
-        
-        # Approximate counter analysis
-        print("\n[1/7] Analyzing approximate counter (10 trials)...")
+        print("[1/7] Approximate counter analysis...")
         approx_stats, approx_top10 = self._analyze_approximate_counter(exact, exact_sorted)
         
-        # Space-Saving analysis
-        print("[2/7] Analyzing Space-Saving algorithm...")
+        print("[2/7] Space-Saving algorithm...")
         ss_performance, ss_top10 = self._analyze_space_saving(exact, exact_sorted)
         
-        # Order preservation analysis
-        print("[3/7] Analyzing order preservation...")
+        print("[3/7] Order preservation...")
         order_stats = self._analyze_order_preservation(exact_sorted)
         
-        # Memory growth analysis
-        print("[4/7] Analyzing memory growth over time...")
+        print("[4/7] Memory growth...")
         memory_growth = self._analyze_memory_growth()
         
-        # Probability trade-off analysis
-        print("[5/7] Analyzing probability trade-off (multiple p values)...")
+        print("[5/7] Probability trade-off...")
         prob_tradeoff = self._analyze_probability_tradeoff()
         
-        # Execution time analysis
-        print("[6/7] Measuring execution times...")
+        print("[6/7] Execution times...")
         exec_times = self._analyze_execution_times()
         
-        # Least frequent analysis
-        print("[7/7] Analyzing least frequent items...")
+        print("[7/7] Least frequent items...")
         least_freq = self._analyze_least_frequent(exact, exact_sorted)
         
         # Save all results
@@ -165,20 +152,7 @@ class FrequentItemsProject:
         exec_times.to_csv('results/execution_times.csv', index=False)
         least_freq.to_csv('results/least_frequent_analysis.csv', index=False)
         
-        print("\n" + "=" * 70)
-        print("ANALYSIS COMPLETE")
-        print("=" * 70)
-        print("\nResults saved to 'results/' directory:")
-        print("  - approximate_counter_stats.csv")
-        print("  - approximate_counter_top10.csv")
-        print("  - space_saving_performance.csv")
-        print("  - space_saving_top10.csv")
-        print("  - order_preservation.csv")
-        print("  - memory_growth.csv")
-        print("  - probability_tradeoff.csv")
-        print("  - execution_times.csv")
-        print("  - least_frequent_analysis.csv")
-        print("=" * 70)
+        print("\nAnalysis complete. Results saved to results/ directory (9 CSV files)")
     
     def _analyze_approximate_counter(
         self, 
@@ -277,7 +251,6 @@ class FrequentItemsProject:
         Returns:
             Tuple of (performance metrics DataFrame, top10 comparison DataFrame)
         """
-        # Extended range to show convergence toward exact counts
         n_values = [5, 10, 15, 20, 30, 50, 90]
         performance_data = []
         
@@ -370,23 +343,16 @@ class FrequentItemsProject:
             DataFrame with time-series memory usage data
         """
         memory_data = []
-        
-        # Exact counter tracking
         exact_seen = set()
-        
-        # Fixed probability counter tracking (p=0.5)
         p = 0.5
         approx_seen = set()
         
         for i, item in enumerate(self.data_stream, 1):
-            # Track exact counter
             exact_seen.add(item)
             
-            # Track approximate counter (sample with probability p)
             if random.random() < p:
                 approx_seen.add(item)
             
-            # Record at intervals
             if i % 50 == 0 or i == len(self.data_stream):
                 memory_data.append({
                     'items_processed': i,
@@ -408,7 +374,6 @@ class FrequentItemsProject:
         tradeoff_data = []
         
         for p in p_values:
-            # Run multiple trials for each p value
             num_trials = 5
             trial_memory = []
             trial_abs_errors = []
@@ -417,11 +382,8 @@ class FrequentItemsProject:
             
             for _ in range(num_trials):
                 approx = self.fixed_probability_counter(p)
-                
-                # Track memory (unique items sampled)
                 trial_memory.append(len(approx))
                 
-                # Calculate errors
                 abs_errors = []
                 rel_errors = []
                 missing_count = 0
@@ -439,7 +401,6 @@ class FrequentItemsProject:
                 trial_rel_errors.append(np.mean(rel_errors))
                 trial_missing.append(missing_count)
             
-            # Average across trials
             tradeoff_data.append({
                 'probability_p': p,
                 'memory_counters': np.mean(trial_memory),
@@ -463,7 +424,6 @@ class FrequentItemsProject:
         time_data = []
         num_trials = 10
         
-        # Exact counter timing
         exact_times = []
         for _ in range(num_trials):
             start = time.perf_counter()
@@ -478,7 +438,6 @@ class FrequentItemsProject:
             'max_time_ms': np.max(exact_times)
         })
         
-        # Approximate counter timing (p=0.5)
         approx_times = []
         for _ in range(num_trials):
             start = time.perf_counter()
@@ -493,7 +452,6 @@ class FrequentItemsProject:
             'max_time_ms': np.max(approx_times)
         })
         
-        # Space-Saving timing for different m values
         for m in [5, 10, 15, 20, 30, 50, 90]:
             ss_times = []
             for _ in range(num_trials):
@@ -528,10 +486,7 @@ class FrequentItemsProject:
         Returns:
             DataFrame comparing bottom-5 items across algorithms
         """
-        # Get bottom 5 items from exact counter
         bottom5_exact = sorted(exact.items(), key=lambda x: x[1])[:5]
-        
-        # Run algorithms
         approx = self.fixed_probability_counter(0.5)
         ss_10 = self.space_saving(10)
         ss_20 = self.space_saving(20)
